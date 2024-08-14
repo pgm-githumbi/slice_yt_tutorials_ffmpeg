@@ -1,5 +1,9 @@
 import os
+import re
 import subprocess
+from typing import Any
+
+from utils import convert_to_seconds, extract_timestamp, sanitize_filename
 
 
 timestamps = """
@@ -28,13 +32,80 @@ long_video = "D:\@Videos\-2024 March\Mia Khalifa Threesome BBC - EPORNER.mp4"
 long_video_name = long_video.split(os.sep)[-1]
 sections = timestamps.splitlines()
 
-cmds = [f"mkdir -p \"{long_video_name}\"",
+cmds = [f"mkdir \"{long_video_name}\"",
         f"cd \"{long_video_name}\"",
         f"pwd",
         f"ffmpeg -ss 00:00:00 -i \"{long_video}\" -t 180 -c copy \"{long_video_name}\{long_video_name}_out.mp4\""]
 print(f"\n\n{cmds}")
-for cmd in cmds:
-    completed = subprocess.run(cmd, shell=True, capture_output=True)
-    print("\n\nreturns", completed.returncode)
-    print("\n\nstdout", completed.stdout)
-    print("\n\nstderr", completed.stderr)
+# for cmd in cmds:
+#     completed = subprocess.run(cmd, shell=True, capture_output=True)
+#     print("\n\nreturns", completed.returncode)
+#     print("\n\nstdout", completed.stdout)
+#     print("\n\nstderr", completed.stderr)
+
+
+def extract_video_name_timestamp(timestamp_line):
+    timestamp = extract_timestamp(timestamp_line)
+    remaining_text = timestamp_line.replace(
+        timestamp, "").strip() if timestamp else None
+    return timestamp, remaining_text
+
+
+def in_powershell(command):
+    pwrshell = ["powershell", "-NoProfile",
+                "-ExecutionPolicy", "Bypass", "-Command",]
+    if type(command) is list:
+        return [*pwrshell, *command]
+    return [*pwrshell, command]
+
+
+def get_video_length_in_seconds(video_path):
+    """Gets the length of a video in seconds using ffprobe."""
+    try:
+        result = subprocess.run(
+            in_powershell(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                           "-of", "default=noprint_wrappers=1:nokey=1", f"\"{video_path}\""]),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        if result.returncode == 0:
+            duration = float(result.stdout)
+            return duration
+        else:
+            print(f"Error getting video length: {result.stderr}")
+            return None
+    except Exception as e:
+        print(f"Error getting video length: {e}")
+        return None
+
+
+long_video_len = get_video_length_in_seconds(long_video)
+subprocess.run(f"mkdir \"{long_video_name}\"", shell=True,
+               stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+for i in range(len(sections)):
+    section = sections[i]
+    next_section = sections[i + 1] if i + 1 < len(sections) else None
+    timestamp, vid_name = extract_video_name_timestamp(section)
+
+    vid_name = sanitize_filename(vid_name) if vid_name else vid_name
+    next_vid_time = extract_video_name_timestamp(
+        next_section) if next_section else None, None
+
+    ((next_timestamp, next_vid_name),
+     _) = next_vid_time if next_vid_time else ((None, None), None)
+
+    timestamp_secs = convert_to_seconds(timestamp) if timestamp else None
+    if timestamp_secs and timestamp_secs > long_video_len:
+        break
+
+    next_timestamp_secs = convert_to_seconds(
+        next_timestamp) if next_timestamp else long_video_len
+
+    if timestamp:
+        short_vid_len_secs = next_timestamp_secs - timestamp_secs
+        command = f"ffmpeg -ss {timestamp} -i \"{long_video}\" -t {short_vid_len_secs} -c copy \"{long_video_name}\{i} - {vid_name}.mp4\""
+        print("command: ", command, "\n\n================================")
+        if short_vid_len_secs > 0:
+            subprocess.run(command, stdout=subprocess.PIPE,
+                           stderr=subprocess.STDOUT, shell=True)
