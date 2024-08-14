@@ -3,7 +3,9 @@ import re
 import subprocess
 from typing import Any
 
-from utils import convert_to_seconds, extract_timestamp, sanitize_filename
+from regex import F
+
+from utils import convert_to_seconds, delete_directory, extract_timestamp, get_video_length_in_seconds, sanitize_filename
 
 
 timestamps = """
@@ -32,17 +34,6 @@ long_video = "D:\@Videos\-2024 March\Mia Khalifa Threesome BBC - EPORNER.mp4"
 long_video_name = long_video.split(os.sep)[-1]
 sections = timestamps.splitlines()
 
-cmds = [f"mkdir \"{long_video_name}\"",
-        f"cd \"{long_video_name}\"",
-        f"pwd",
-        f"ffmpeg -ss 00:00:00 -i \"{long_video}\" -t 180 -c copy \"{long_video_name}\{long_video_name}_out.mp4\""]
-print(f"\n\n{cmds}")
-# for cmd in cmds:
-#     completed = subprocess.run(cmd, shell=True, capture_output=True)
-#     print("\n\nreturns", completed.returncode)
-#     print("\n\nstdout", completed.stdout)
-#     print("\n\nstderr", completed.stderr)
-
 
 def extract_video_name_timestamp(timestamp_line):
     timestamp = extract_timestamp(timestamp_line)
@@ -51,38 +42,22 @@ def extract_video_name_timestamp(timestamp_line):
     return timestamp, remaining_text
 
 
-def in_powershell(command):
-    pwrshell = ["powershell", "-NoProfile",
-                "-ExecutionPolicy", "Bypass", "-Command",]
-    if type(command) is list:
-        return [*pwrshell, *command]
-    return [*pwrshell, command]
-
-
-def get_video_length_in_seconds(video_path):
-    """Gets the length of a video in seconds using ffprobe."""
-    try:
-        result = subprocess.run(
-            in_powershell(["ffprobe", "-v", "error", "-show_entries", "format=duration",
-                           "-of", "default=noprint_wrappers=1:nokey=1", f"\"{video_path}\""]),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        if result.returncode == 0:
-            duration = float(result.stdout)
-            return duration
-        else:
-            print(f"Error getting video length: {result.stderr}")
-            return None
-    except Exception as e:
-        print(f"Error getting video length: {e}")
-        return None
-
+os.chdir('temp')
+print(os.getcwd())
 
 long_video_len = get_video_length_in_seconds(long_video)
-subprocess.run(f"mkdir \"{long_video_name}\"", shell=True,
-               stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+directory_name = f'{long_video_name}'
+directory_name = os.path.join(os.getcwd(), directory_name)
+
+try:
+    delete_directory(directory_name)
+except PermissionError:
+    print("Could not delete directory")
+
+
+os.makedirs(directory_name, exist_ok=True)
+
+
 for i in range(len(sections)):
     section = sections[i]
     next_section = sections[i + 1] if i + 1 < len(sections) else None
@@ -102,10 +77,21 @@ for i in range(len(sections)):
     next_timestamp_secs = convert_to_seconds(
         next_timestamp) if next_timestamp else long_video_len
 
+    output_folder = f"{long_video_name}"
+    output_folder = sanitize_filename(output_folder)
+    output_file = f"{i} - {vid_name}.mp4"
+    output_file = sanitize_filename(output_file)
+    output = os.path.join(os.getcwd(), output_folder, output_file)
+
     if timestamp:
-        short_vid_len_secs = next_timestamp_secs - timestamp_secs
-        command = f"ffmpeg -ss {timestamp} -i \"{long_video}\" -t {short_vid_len_secs} -c copy \"{long_video_name}\{i} - {vid_name}.mp4\""
-        print("command: ", command, "\n\n================================")
+        short_vid_len_secs = min(
+            long_video_len, next_timestamp_secs) - timestamp_secs
+        ffmpeg_cmd = ['ffmpeg', '-loglevel', 'error', '-ss', f'{timestamp}',
+                      '-i', long_video, '-t', f'{short_vid_len_secs}', '-c', 'copy',
+                      output]
+        print("command: ", ffmpeg_cmd)
         if short_vid_len_secs > 0:
-            subprocess.run(command, stdout=subprocess.PIPE,
-                           stderr=subprocess.STDOUT, shell=True)
+            result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, shell=True)
+            print("\n", result)
+    print("\n\n================================")
