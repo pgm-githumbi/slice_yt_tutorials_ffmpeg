@@ -31,6 +31,7 @@ timestamps = """
  """
 
 long_video = "D:\@Videos\-2024 March\Mia Khalifa Threesome BBC - EPORNER.mp4"
+output_directory = f'D:\@Videos\-2024 March-other'
 long_video_name = long_video.split(os.sep)[-1]
 sections = timestamps.splitlines()
 
@@ -42,7 +43,8 @@ def extract_video_name_timestamp(timestamp_line):
     return timestamp, remaining_text
 
 
-os.chdir('temp')
+os.makedirs(output_directory, exist_ok=True)
+os.chdir(output_directory)
 print(os.getcwd())
 
 long_video_len = get_video_length_in_seconds(long_video)
