@@ -5,6 +5,10 @@ The timestamp file contains a list of newline separated strings.\
 Each string contains a timestamp of the form HH:MM:SS somewhere in it.\
 Remainder of the string is used as the video filename.<br/> <br/>
 ```
+py cut.py --input_file "D:\my_video.mp4" --output_folder "D:\test_folder" --timestamps "D:\timestamps2.txt"
+```
+
+```
 usage: cut.py [-h] --input_file INPUT_FILE --timestamps TIMESTAMPS
               [--output_folder OUTPUT_FOLDER]
 
