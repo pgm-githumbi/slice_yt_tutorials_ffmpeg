@@ -19,6 +19,15 @@ def extract_timestamp(time_str):
     return None
 
 
+def extract_video_name_timestamp(timestamp_line):
+    timestamp = extract_timestamp(timestamp_line)
+    remaining_text = timestamp_line.replace(
+        timestamp, "").strip() if timestamp else None
+    print(f"\ntimestamp for {timestamp_line} is {timestamp}")
+    print(f"remaining_text for {timestamp_line} is {remaining_text}\n")
+    return timestamp, remaining_text
+
+
 def delete_directory(directory_path):
     """Deletes a directory and its contents if it exists."""
     if os.path.exists(directory_path):
