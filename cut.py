@@ -24,11 +24,13 @@ def process_file_in_pairs(filename):
 
     with open(filename, 'r') as file:
         lines = iter(file)
+        prev_line2 = next(lines)
         while True:
             try:
-                line1 = next(lines)
+                line1 = prev_line2
                 line2 = next(lines)
                 yield line1.strip(), line2.strip()
+                prev_line2 = line2
             except StopIteration:
                 # If we reach the end of the file and there's an odd number of lines
                 if line1:
